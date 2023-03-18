@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
@@ -20,8 +21,9 @@
 #define BUFSIZE 1024
 
 
-char buf[BUFSIZE];
+
 int client_socket;
+
 
 void Debug(char* msg);
 
@@ -78,30 +80,116 @@ int GetIpFromDNS(Conn conn){
     conn.host=server;*/
 }
 
-void CreateSocket(Conn conn){
-  
-  if (strcmp(conn.mode, "udp") == 0){
-    Debug("In udp");
+void CreateSocket(Conn conn, bool is_tcp){
+    int type;
     int family = AF_INET;
+  if (is_tcp){
+
+      Debug("In tcp");
+     type = SOCK_STREAM;
 
   }else{
-    //TODO: 
+      Debug("In udp");
+     type = SOCK_DGRAM;
   }
+   
+    client_socket= socket(family,type,0);
+    if (client_socket <= 0){
+        fprintf(stderr,"ERROR: could not create socket");
+        exit(EXIT_FAILURE);
+    }
 } 
 
+void SetIsTcp(char* mode, bool *is_tcp){
+    if(strcmp(mode,"tcp") == 0) *is_tcp = true;
+    
+}
 
+void Connect(Conn conn){
+    Debug("Creating Connection");
+    struct sockaddr_in serverAddress;
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(conn.port);
+    serverAddress.sin_addr.s_addr = inet_addr(conn.host);
+
+
+    if (connect(client_socket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) !=0)
+    {
+		perror("ERROR: connection: ");
+		exit(EXIT_FAILURE);        
+    }
+  
+    Debug("Connected");
+}
+
+void Read(char *bufin){
+    bzero(bufin, BUFSIZE);
+    printf("Please enter msg: ");
+    if(fgets(bufin, BUFSIZE, stdin) == NULL){
+        perror("ERROR in read");
+    }
+}
+void Send(char *bufin){
+
+    int bytestx;
+    bytestx = send(client_socket, bufin, strlen(bufin), 0);
+    if (bytestx < 0) 
+      perror("ERROR in sendto");
+}
+
+void Recieve(char *buf){
+    int bytesrx;
+    bzero(buf, BUFSIZE);
+    bytesrx = recv(client_socket, buf, BUFSIZE, 0);
+    if (bytesrx < 0) 
+    perror("ERROR in recvfrom");
+}
+
+void PrintResponse(char *buf){
+
+    printf("Echo from server: '%s'", buf);
+}
+
+bool CheckForBye(char *bufin, char *buf){
+
+    //printf("BUFF: %d", (strcmp("BYE\n",buf)));
+    if((strcmp("BYE\n",bufin)==0)){
+        return false;
+    }
+
+    if((strcmp("BYE\n",buf)==0)){
+        //TODO: SEND BYE BACK
+        return false;
+    }
+    return true;
+}
 int main (int argc, const char * argv[]) {
 
+    bool is_tcp = false;
+    bool repeat = true;
+    char buf[BUFSIZE];
+    char bufin[BUFSIZE];
 
     Conn conn = parseArgs(argc, argv);
+    fprintf(stderr,"Mode is %s, ip: %s , port: %d\n", conn.mode, conn.host, conn.port );
     //GetIpFromDNS(conn);
-    CreateSocket(conn);
-    
-    printf("Mode is %s, ip: %s , port: %d", conn.mode, conn.host, conn.port );
+    SetIsTcp(conn.mode, &is_tcp);
+    CreateSocket(conn, is_tcp);
+    Connect(conn);
+   
+    while(repeat){
+    Read(bufin)
+    Send(bufin);
+    Recieve(buf);
+    PrintResponse(buf);
+    repeat = CheckForBye(bufin,buf);
 
+    }
+    shutdown(client_socket,SHUT_RDWR);
+    close(client_socket);
     return 0;
 }
 
 void Debug(char* msg){
-printf("DEBUG: %s",msg);
+fprintf(stderr,"DEBUG: %s\n",msg);
 }
