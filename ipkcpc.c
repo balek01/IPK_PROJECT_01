@@ -1,12 +1,3 @@
-/*
- * IPK.2015L
- *
- * Demonstration of trivial TCP communication.
- *
- * Ondrej Rysavy (rysavy@fit.vutbr.cz)
- *
- */
- 
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -21,9 +12,10 @@
 
 #define BUFSIZE 1024
 
-
+// TOOD : fix ctrl c in udp 
 volatile sig_atomic_t flag = 0;
 int client_socket;
+socklen_t serverlen;
 
 typedef struct {
     char* host;
@@ -37,13 +29,18 @@ void CreateSocket(Conn conn, bool is_tcp);
 void SetIsTcp(char* mode, bool *is_tcp);
 void TCP_Connect(Conn conn);
 void Read(char *bufin);
-void Send(char *bufin);
-void Recieve(char *buf);
+void TCP_Send(char *bufin);
+void TCP_Recieve(char *buf);
 void PrintBuf(char *buf,bool server);
 void TCP_SendBye(bool expectbye);
 bool TCP_CheckForBye(char *bufin, char *buf);
 void TCP_SigHandler(int sig);
-void TCP_Run();
+void TCP_Run(Conn conn);
+
+void UDP_Run(Conn conn);
+struct sockaddr_in UDP_CreateAddress(Conn conn);
+void UDP_Send(char *bufin, struct sockaddr_in serverAddress);
+void UDP_Recieve(char *buf, struct sockaddr_in serverAddress);
 
 void TCP_SigHandler(int sig){
     flag = 1;
@@ -147,23 +144,20 @@ void TCP_Connect(Conn conn){
 void Read(char *bufin){
     bzero(bufin, BUFSIZE);
     printf("Please enter msg: ");
-    if(fgets(bufin, BUFSIZE, stdin) == NULL){
+    if(fgets(bufin,BUFSIZE, stdin) == NULL){
         perror("ERROR in read");
     }
+
 }
 
-
-void Send(char *bufin){
-
+void TCP_Send(char *bufin){
     int bytestx;
     bytestx = send(client_socket, bufin, strlen(bufin), 0);
     if (bytestx < 0) 
       perror("ERROR in sendto");
 }
 
-
-
-void Recieve(char *buf){
+void TCP_Recieve(char *buf){
     int bytesrx;
     bzero(buf, BUFSIZE);
     bytesrx = recv(client_socket, buf, BUFSIZE, 0);
@@ -181,7 +175,7 @@ void PrintBuf(char *buf,bool server){
 }
 bool TCP_CheckForBye(char *bufin, char *buf){
     bool sendbyeback = true;
-    //printf("BUFF: %d", (strcmp("BYE\n",buf)));
+    
     if((strcmp("BYE\n",bufin)==0)){
         sendbyeback=false;
         return false;
@@ -201,16 +195,16 @@ void TCP_SendBye(bool expectbye){
     char bufin[BUFSIZE]="BYE\n";
     bzero(buf, BUFSIZE);
 
-    Send(bufin);
+    TCP_Send(bufin);
     PrintBuf(bufin,false);
     if(expectbye){
-    Recieve(buf);
+    TCP_Recieve(buf);
     PrintBuf(buf,true);
     }
 }
 
 
-void RunTCP(Conn conn){
+void TCP_Run(Conn conn){
     bool repeat = true;
     char buf[BUFSIZE];
     char bufin[BUFSIZE];
@@ -220,8 +214,8 @@ void RunTCP(Conn conn){
     while(repeat){
     Read(bufin);
 
-    Send(bufin);
-    Recieve(buf);
+    TCP_Send(bufin);
+    TCP_Recieve(buf);
  
     PrintBuf(buf,true);
     repeat = TCP_CheckForBye(bufin,buf);
@@ -229,6 +223,61 @@ void RunTCP(Conn conn){
         return;
     }
     }
+}
+
+struct sockaddr_in UDP_CreateAddress(Conn conn){
+    struct sockaddr_in serverAddress;
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(conn.port);
+    serverAddress.sin_addr.s_addr = inet_addr(conn.host);
+    return serverAddress;
+}
+
+
+
+void UDP_Send(char * bufin, struct sockaddr_in serverAddress){
+    
+    int flags = 0;
+    int len = strlen(bufin);
+    char output[len+2];
+    
+    output[0] = 0; 
+    output[1] = len;  
+    
+    
+    strncpy(&output[2], bufin, len-1);
+    serverlen = sizeof(serverAddress);
+    int bytestx=  sendto(client_socket, output, len+2, flags, (struct sockaddr *) &serverAddress, serverlen);
+    if (bytestx < 0) 
+      perror("ERROR: sendto");
+       
+    
+}
+
+void UDP_Recieve(char *buf, struct sockaddr_in serverAddress){
+    //TODO: recieve msg prints bad
+    int flags = 0;
+    char bufs[BUFSIZE];
+    bzero(bufs, BUFSIZE);
+    int bytesrx=  recvfrom(client_socket, bufs, BUFSIZE, flags, (struct sockaddr *) &serverAddress, &serverlen);
+    printf("%s",bufs);
+    if (bytesrx < 0) {
+      perror("ERROR: recieve");}
+    
+}
+void UDP_Run(Conn conn){
+    char buf[BUFSIZE];
+    bzero(buf, BUFSIZE);
+    char bufin[BUFSIZE];
+    struct sockaddr_in serverAddress;
+    
+
+    CreateSocket(conn, false);
+    Read(bufin);
+    serverAddress=UDP_CreateAddress(conn);
+    UDP_Send(bufin,serverAddress);
+    UDP_Recieve(buf,serverAddress);
+    PrintBuf(buf,true);
 }
 
 
@@ -245,7 +294,9 @@ int main (int argc, const char * argv[]) {
     SetIsTcp(conn.mode, &is_tcp);
 
     if (is_tcp){
-        RunTCP(conn);
+        TCP_Run(conn);
+    }else{
+        UDP_Run(conn);
     }
     
     shutdown(client_socket,SHUT_RDWR);
