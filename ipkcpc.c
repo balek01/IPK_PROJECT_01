@@ -8,6 +8,7 @@
  */
  
 #include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -21,8 +22,9 @@
 #define BUFSIZE 1024
 
 
-
+volatile sig_atomic_t flag = 0;
 int client_socket;
+
 
 
 void Debug(char* msg);
@@ -37,6 +39,7 @@ Conn parseArgs(int argc, const char * argv[]){
     int opt;
     Conn conn;
     conn.port=-1;
+
 
     while ((opt = getopt(argc, argv, "h:p:m:")) != -1) {
         switch (opt) {
@@ -129,6 +132,8 @@ void Read(char *bufin){
         perror("ERROR in read");
     }
 }
+
+
 void Send(char *bufin){
 
     int bytestx;
@@ -136,6 +141,8 @@ void Send(char *bufin){
     if (bytestx < 0) 
       perror("ERROR in sendto");
 }
+
+
 
 void Recieve(char *buf){
     int bytesrx;
@@ -145,23 +152,52 @@ void Recieve(char *buf){
     perror("ERROR in recvfrom");
 }
 
-void PrintResponse(char *buf){
+void PrintBuf(char *buf,bool server){
+    if (server){
+        printf("Response: '%s'", buf);
+    }else{
+        printf("Your msg: '%s'", buf);
+    }
+    
+}
+void SendBye(bool expectbye){
+    char buf[BUFSIZE];
+    char bufin[BUFSIZE]="BYE\n";
+    bzero(buf, BUFSIZE);
 
-    printf("Echo from server: '%s'", buf);
+    Send(bufin);
+    PrintBuf(bufin,false);
+    if(expectbye){
+    Recieve(buf);
+    PrintBuf(buf,true);
+    }
 }
 
 bool CheckForBye(char *bufin, char *buf){
-
+    bool sendbyeback = true;
     //printf("BUFF: %d", (strcmp("BYE\n",buf)));
     if((strcmp("BYE\n",bufin)==0)){
+        sendbyeback=false;
         return false;
     }
 
     if((strcmp("BYE\n",buf)==0)){
-        //TODO: SEND BYE BACK
+        if(sendbyeback){
+        SendBye(false);
+        }
         return false;
     }
     return true;
+}
+
+
+void SigHandler(int sig){
+    flag = 1;
+    printf("\n");
+    SendBye(true);
+    shutdown(client_socket,SHUT_RDWR);
+    close(client_socket);
+    exit(0);
 }
 int main (int argc, const char * argv[]) {
 
@@ -169,6 +205,7 @@ int main (int argc, const char * argv[]) {
     bool repeat = true;
     char buf[BUFSIZE];
     char bufin[BUFSIZE];
+    signal(SIGINT, SigHandler);
 
     Conn conn = parseArgs(argc, argv);
     fprintf(stderr,"Mode is %s, ip: %s , port: %d\n", conn.mode, conn.host, conn.port );
@@ -178,12 +215,16 @@ int main (int argc, const char * argv[]) {
     Connect(conn);
    
     while(repeat){
-    Read(bufin)
+    Read(bufin);
+
     Send(bufin);
     Recieve(buf);
-    PrintResponse(buf);
+ 
+    PrintBuf(buf,true);
     repeat = CheckForBye(bufin,buf);
-
+       if (flag){
+        return 0;
+    }
     }
     shutdown(client_socket,SHUT_RDWR);
     close(client_socket);
