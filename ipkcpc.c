@@ -25,15 +25,34 @@
 volatile sig_atomic_t flag = 0;
 int client_socket;
 
-
-
-void Debug(char* msg);
-
 typedef struct {
     char* host;
     int port;
     char* mode;
 } Conn;
+
+void Debug(char* msg);
+Conn parseArgs(int argc, const char * argv[]);
+void CreateSocket(Conn conn, bool is_tcp);
+void SetIsTcp(char* mode, bool *is_tcp);
+void TCP_Connect(Conn conn);
+void Read(char *bufin);
+void Send(char *bufin);
+void Recieve(char *buf);
+void PrintBuf(char *buf,bool server);
+void TCP_SendBye(bool expectbye);
+bool TCP_CheckForBye(char *bufin, char *buf);
+void TCP_SigHandler(int sig);
+void TCP_Run();
+
+void TCP_SigHandler(int sig){
+    flag = 1;
+    printf("\n");
+    TCP_SendBye(true);
+    shutdown(client_socket,SHUT_RDWR);
+    close(client_socket);
+    exit(0);
+}
 
 Conn parseArgs(int argc, const char * argv[]){
     int opt;
@@ -108,7 +127,7 @@ void SetIsTcp(char* mode, bool *is_tcp){
     
 }
 
-void Connect(Conn conn){
+void TCP_Connect(Conn conn){
     Debug("Creating Connection");
     struct sockaddr_in serverAddress;
     serverAddress.sin_family = AF_INET;
@@ -160,7 +179,24 @@ void PrintBuf(char *buf,bool server){
     }
     
 }
-void SendBye(bool expectbye){
+bool TCP_CheckForBye(char *bufin, char *buf){
+    bool sendbyeback = true;
+    //printf("BUFF: %d", (strcmp("BYE\n",buf)));
+    if((strcmp("BYE\n",bufin)==0)){
+        sendbyeback=false;
+        return false;
+    }
+
+    if((strcmp("BYE\n",buf)==0)){
+        if(sendbyeback){
+        TCP_SendBye(false);
+        }
+        return false;
+    }
+    return true;
+}
+
+void TCP_SendBye(bool expectbye){
     char buf[BUFSIZE];
     char bufin[BUFSIZE]="BYE\n";
     bzero(buf, BUFSIZE);
@@ -173,46 +209,13 @@ void SendBye(bool expectbye){
     }
 }
 
-bool CheckForBye(char *bufin, char *buf){
-    bool sendbyeback = true;
-    //printf("BUFF: %d", (strcmp("BYE\n",buf)));
-    if((strcmp("BYE\n",bufin)==0)){
-        sendbyeback=false;
-        return false;
-    }
 
-    if((strcmp("BYE\n",buf)==0)){
-        if(sendbyeback){
-        SendBye(false);
-        }
-        return false;
-    }
-    return true;
-}
-
-
-void SigHandler(int sig){
-    flag = 1;
-    printf("\n");
-    SendBye(true);
-    shutdown(client_socket,SHUT_RDWR);
-    close(client_socket);
-    exit(0);
-}
-int main (int argc, const char * argv[]) {
-
-    bool is_tcp = false;
+void RunTCP(Conn conn){
     bool repeat = true;
     char buf[BUFSIZE];
     char bufin[BUFSIZE];
-    signal(SIGINT, SigHandler);
-
-    Conn conn = parseArgs(argc, argv);
-    fprintf(stderr,"Mode is %s, ip: %s , port: %d\n", conn.mode, conn.host, conn.port );
-    //GetIpFromDNS(conn);
-    SetIsTcp(conn.mode, &is_tcp);
-    CreateSocket(conn, is_tcp);
-    Connect(conn);
+    CreateSocket(conn, true);
+    TCP_Connect(conn);
    
     while(repeat){
     Read(bufin);
@@ -221,11 +224,30 @@ int main (int argc, const char * argv[]) {
     Recieve(buf);
  
     PrintBuf(buf,true);
-    repeat = CheckForBye(bufin,buf);
+    repeat = TCP_CheckForBye(bufin,buf);
        if (flag){
-        return 0;
+        return;
     }
     }
+}
+
+
+int main (int argc, const char * argv[]) {
+
+    bool is_tcp = false;
+   
+  
+    signal(SIGINT, TCP_SigHandler);
+
+    Conn conn = parseArgs(argc, argv);
+    fprintf(stderr,"Mode is %s, ip: %s , port: %d\n", conn.mode, conn.host, conn.port );
+    //GetIpFromDNS(conn);
+    SetIsTcp(conn.mode, &is_tcp);
+
+    if (is_tcp){
+        RunTCP(conn);
+    }
+    
     shutdown(client_socket,SHUT_RDWR);
     close(client_socket);
     return 0;
