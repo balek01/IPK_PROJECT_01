@@ -319,8 +319,8 @@ int main(int argc, char *const argv[])
 {
 
     bool is_tcp = false;
-    SetIsTcp(conn.mode, &is_tcp);
     Conn conn = ParseArgs(argc, argv);
+    SetIsTcp(conn.mode, &is_tcp);
     int client_socket = CreateSocket(is_tcp);
 
     if (is_tcp)
