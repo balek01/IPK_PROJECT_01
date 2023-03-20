@@ -46,6 +46,8 @@ void Debug(char* msg);
  *
  * @param argc Count of arguments passed by user. 
  * @param argv Array od arguments.
+ * 
+ * @return struct conn containing connection information.
  */
 Conn ParseArgs(int argc, char * const argv[]);
 
@@ -53,8 +55,10 @@ Conn ParseArgs(int argc, char * const argv[]);
  * Creates socket of give mode for given address.
  *
  * @param is_tcp Creates socket in TCP mode is true, else UDP mode.
+ * 
+ * @return file descriptor of created socket.
  */
-void CreateSocket(bool is_tcp);
+int CreateSocket(bool is_tcp);
 
 /**
  * Sets given variable to true if given mode is tcp else udp.
@@ -68,8 +72,9 @@ void SetIsTcp(char* mode, bool *is_tcp);
  * Creates tcp connection to given address. 
  *
  * @param conn Struct with credentials of host address.   
+ * @param client_socket File descriptor of socket.  
  */
-void TCP_Connect(Conn conn);
+void TCP_Connect(Conn conn,int client_socket);
 
 /**
  * Reads from stdin to given buffer
@@ -82,15 +87,17 @@ void Read(char *bufin);
  * Sends buffer contents to connected host.
  *
  * @param bufin Bufer to be sent.
+ * @param client_socket File descriptor of socket.
  */
-void TCP_Send(char *bufin);
+void TCP_Send(char *bufin,int client_socket);
 
 /**
  * Reads to buffer contents of recived message.
  *
  * @param buf Bufer to contain recived message. 
+ * @param client_socket File descriptor of socket.
  */
-void TCP_Receive(char *buf);
+void TCP_Receive(char *buf, int client_socket);
 
 /**
  * Prints content of buffer to stdout.
@@ -103,18 +110,20 @@ void TCP_PrintBuf(char *buf);
  * Sends BYE to host, and prints sended and recived BYE to stdout.
  *
  * @param expectbye whether or not expect BYE as response.
+ * @param client_socket File descriptor of socket.
  */
-void TCP_SendBye(bool expectbye);
+void TCP_SendBye(bool expectbye, int client_socket);
 
 /**
  * Checks whether user or host send BYE. Returns true if either did.
  *
  * @param bufin user input buffer.
  * @param buf host response buffer.
+ * @param client_socket File descriptor of socket.
  * 
  * @return Returns true if either did send bye otherwise false.
  */
-bool TCP_CheckForBye(char *bufin, char *buf);
+bool TCP_CheckForBye(char *bufin, char *buf, int client_socket);
 
 /**
  * Handles C-c signal from user by sending BYE, waitnig for BYE response and enging program.
@@ -128,16 +137,18 @@ void TCP_SigHandler(int sig);
  * Wraper function to run TCP_* functions.
  *
  * @param conn connection info
+ * @param client_socket File descriptor of socket.
  */
-void TCP_Run(Conn conn);
+void TCP_Run(Conn conn,int client_socket);
 
 
 /**
  * Wraper function to run UDP_* functions.
  *
  * @param conn connection info
+ * @param client_socket File descriptor of socket.
  */
-void UDP_Run(Conn conn);
+void UDP_Run(Conn conn,int client_socket);
 
 /**
  * Creates struct sockaddr_in containing connection information
@@ -153,8 +164,11 @@ struct sockaddr_in UDP_CreateAddress(Conn conn);
  *
  * @param bufin buffer to be sent.
  * @param serverAddres struct sockaddr_in containing connection information.
+ * @param client_socket File descriptor of socket.
+ * 
+ * @return size of serverAddress
  */
-void UDP_Send(char *bufin, struct sockaddr_in serverAddress);
+socklen_t UDP_Send(char *bufin, struct sockaddr_in serverAddress,int client_socket);
 
 /**
  * Expects message from given host address. If message is recived save its contents to buffer. 
@@ -162,8 +176,10 @@ void UDP_Send(char *bufin, struct sockaddr_in serverAddress);
  *
  * @param buf Bufer to contain recived message. 
  * @param serverAddres struct sockaddr_in containing connection information.
+ * @param client_socket File descriptor of socket.
+ * @param serverlen size of a serverAddress
  */
-void UDP_Receive(char *buf, struct sockaddr_in serverAddress);
+void UDP_Receive(char *buf, struct sockaddr_in serverAddress, int client_socket, socklen_t serverlen);
 
 /**
  * Prints contents of buffer to stdout.
