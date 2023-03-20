@@ -1,18 +1,18 @@
 /**
- * 
+ *
  * @file ipkcpc.c
- * 
+ *
  * @brief Project: IPK23 Calculator Protocol
  *
  * @author xbalek02 Miroslav Bálek
- * 
- * Note: This project is both UPD and TCP communication significantly inspired by 
+ *
+ * Note: This project is both UPD and TCP communication significantly inspired by
  * code written by Ondrej Rysavy (rysavy@fit.vutbr.cz)
- * SRC: 
+ * SRC:
  * - https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoUdp/client.c
  * - https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoUdp/client.c
- * 
- * 
+ *
+ *
  *   Last modified: Mar 20, 2023
  */
 
@@ -20,42 +20,42 @@
 #define IPKCPC_H
 
 int OP_CODE_REQ = 0;
-int OP_CODE_RES=1;
-int STAT_CODE_ERR =1;
-int STAT_CODE_OK=0;
+int OP_CODE_RES = 1;
+int STAT_CODE_ERR = 1;
+int STAT_CODE_OK = 0;
 bool DEBUG = false;
 int HEAD_SIZE_REQ = 2;
 int HEAD_SIZE_RES = 3;
 
-typedef struct {
-    char* host;
+typedef struct
+{
+    char *host;
     int port;
-    char* mode;
+    char *mode;
 } Conn;
-
 
 /**
  * Prints given string to stderr.
  *
- * @param msg Message to be printed. 
+ * @param msg Message to be printed.
  */
-void Debug(char* msg);
+void Debug(char *msg);
 
 /**
  * Parse given arguments int Conn struct.
  *
- * @param argc Count of arguments passed by user. 
+ * @param argc Count of arguments passed by user.
  * @param argv Array od arguments.
- * 
+ *
  * @return struct conn containing connection information.
  */
-Conn ParseArgs(int argc, char * const argv[]);
+Conn ParseArgs(int argc, char *const argv[]);
 
 /**
  * Creates socket of give mode for given address.
  *
  * @param is_tcp Creates socket in TCP mode is true, else UDP mode.
- * 
+ *
  * @return file descriptor of created socket.
  */
 int CreateSocket(bool is_tcp);
@@ -66,20 +66,20 @@ int CreateSocket(bool is_tcp);
  * @param mode   Expects "udp" | "tcp".
  * @param is_tcp Varable that will be set.
  */
-void SetIsTcp(char* mode, bool *is_tcp);
+void SetIsTcp(char *mode, bool *is_tcp);
 
 /**
- * Creates tcp connection to given address. 
+ * Creates tcp connection to given address.
  *
- * @param conn Struct with credentials of host address.   
- * @param client_socket File descriptor of socket.  
+ * @param conn Struct with credentials of host address.
+ * @param client_socket File descriptor of socket.
  */
-void TCP_Connect(Conn conn,int client_socket);
+void TCP_Connect(Conn conn, int client_socket);
 
 /**
  * Reads from stdin to given buffer
  *
- * @param bufin Bufer to contain stdin. 
+ * @param bufin Bufer to contain stdin.
  */
 void Read(char *bufin);
 
@@ -89,12 +89,12 @@ void Read(char *bufin);
  * @param bufin Bufer to be sent.
  * @param client_socket File descriptor of socket.
  */
-void TCP_Send(char *bufin,int client_socket);
+void TCP_Send(char *bufin, int client_socket);
 
 /**
  * Reads to buffer contents of recived message.
  *
- * @param buf Bufer to contain recived message. 
+ * @param buf Bufer to contain recived message.
  * @param client_socket File descriptor of socket.
  */
 void TCP_Receive(char *buf, int client_socket);
@@ -120,7 +120,7 @@ void TCP_SendBye(bool expectbye, int client_socket);
  * @param bufin user input buffer.
  * @param buf host response buffer.
  * @param client_socket File descriptor of socket.
- * 
+ *
  * @return Returns true if either did send bye otherwise false.
  */
 bool TCP_CheckForBye(char *bufin, char *buf, int client_socket);
@@ -132,15 +132,13 @@ bool TCP_CheckForBye(char *bufin, char *buf, int client_socket);
  */
 void TCP_SigHandler(int sig);
 
-
 /**
  * Wraper function to run TCP_* functions.
  *
  * @param conn connection info
  * @param client_socket File descriptor of socket.
  */
-void TCP_Run(Conn conn,int client_socket);
-
+void TCP_Run(Conn conn, int client_socket);
 
 /**
  * Wraper function to run UDP_* functions.
@@ -148,13 +146,13 @@ void TCP_Run(Conn conn,int client_socket);
  * @param conn connection info
  * @param client_socket File descriptor of socket.
  */
-void UDP_Run(Conn conn,int client_socket);
+void UDP_Run(Conn conn, int client_socket);
 
 /**
  * Creates struct sockaddr_in containing connection information
  *
  * @param conn connection info.
- * 
+ *
  * @return struct sockaddr_in containing connection information.
  */
 struct sockaddr_in UDP_CreateAddress(Conn conn);
@@ -165,16 +163,16 @@ struct sockaddr_in UDP_CreateAddress(Conn conn);
  * @param bufin buffer to be sent.
  * @param serverAddres struct sockaddr_in containing connection information.
  * @param client_socket File descriptor of socket.
- * 
+ *
  * @return size of serverAddress
  */
-socklen_t UDP_Send(char *bufin, struct sockaddr_in serverAddress,int client_socket);
+socklen_t UDP_Send(char *bufin, struct sockaddr_in serverAddress, int client_socket);
 
 /**
- * Expects message from given host address. If message is recived save its contents to buffer. 
+ * Expects message from given host address. If message is recived save its contents to buffer.
  * This function wait only for 5 seconds, then error is printed and program continues.
  *
- * @param buf Bufer to contain recived message. 
+ * @param buf Bufer to contain recived message.
  * @param serverAddres struct sockaddr_in containing connection information.
  * @param client_socket File descriptor of socket.
  * @param serverlen size of a serverAddress
@@ -184,8 +182,8 @@ void UDP_Receive(char *buf, struct sockaddr_in serverAddress, int client_socket,
 /**
  * Prints contents of buffer to stdout.
  *
- * @param buf Bufer with content to be printed. 
+ * @param buf Bufer with content to be printed.
  */
 void UDP_PrintBuf(char *buf);
 
-#endif 
+#endif
