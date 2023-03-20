@@ -13,6 +13,8 @@
  * - https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoUdp/client.c
  * 
  *  Last modified: Mar 20, 2023
+ * 
+ * Known problem: when udp msg is longer then 255;
  */
 
 #include <stdio.h>
@@ -37,9 +39,10 @@ socklen_t serverlen;
 
 
 void TCP_SigHandler(int sig){
-    flag = 1;
+    flag = 1; 
     printf("\n");
     TCP_SendBye(true);
+    //close connection
     shutdown(client_socket,SHUT_RDWR);
     close(client_socket);
     exit(0);
@@ -83,20 +86,20 @@ Conn ParseArgs(int argc, char *const  argv[]){
 
 
 
-void CreateSocket(Conn conn, bool is_tcp){
+void CreateSocket(bool is_tcp){
     int type;
-    int family = AF_INET;
+    int family = AF_INET; // ipv4
+  
   if (is_tcp){
-
     Debug("In tcp");
-     type = SOCK_STREAM;
+     type = SOCK_STREAM; // tcp
 
   }else{
     Debug("In udp");
-     type = SOCK_DGRAM;
+     type = SOCK_DGRAM; // udp
   }
    
-    client_socket= socket(family,type,0);
+    client_socket= socket(family,type,0); // create ipv4 socket of given type
     if (client_socket <= 0){
         fprintf(stderr,"ERROR: could not create socket");
         exit(EXIT_FAILURE);
@@ -111,11 +114,11 @@ void SetIsTcp(char* mode, bool *is_tcp){
 void TCP_Connect(Conn conn){
     Debug("Creating Connection");
     struct sockaddr_in serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(conn.port);
-    serverAddress.sin_addr.s_addr = inet_addr(conn.host);
+    serverAddress.sin_family = AF_INET; // ipv4
+    serverAddress.sin_port = htons(conn.port);// set port
+    serverAddress.sin_addr.s_addr = inet_addr(conn.host); // set host ip address
 
-
+    // try to establish connection
     if (connect(client_socket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) !=0)
     {
 		perror("ERROR: connection: ");
@@ -126,7 +129,8 @@ void TCP_Connect(Conn conn){
 }
 
 void Read(char *bufin){
-    bzero(bufin, BUFSIZE);
+
+    bzero(bufin, BUFSIZE);// refresh buffer
     if(fgets(bufin,BUFSIZE, stdin) == NULL){
         perror("ERROR in read");
     }
@@ -135,6 +139,7 @@ void Read(char *bufin){
 
 void TCP_Send(char *bufin){
     int bytestx;
+    // try to send buffer to connected host
     bytestx = send(client_socket, bufin, strlen(bufin), 0);
     if (bytestx < 0) 
       perror("ERROR in sendto");
@@ -142,25 +147,25 @@ void TCP_Send(char *bufin){
 
 void TCP_Receive(char *buf){
     int bytesrx;
-    bzero(buf, BUFSIZE);
-    bytesrx = recv(client_socket, buf, BUFSIZE, 0);
+    bzero(buf, BUFSIZE);// refresh buffer
+    bytesrx = recv(client_socket, buf, BUFSIZE, 0);  // recive response  to buffer
     if (bytesrx < 0) 
     perror("ERROR in recvfrom");
 }
 
-void TCP_PrintBuf(char *buf){
-   
+void TCP_PrintBuf(char *buf){  
         printf("%s", buf);  
 }
+
 bool TCP_CheckForBye(char *bufin, char *buf){
     bool sendbyeback = true;
     
-    if((strcmp("BYE\n",bufin)==0)){
+    if((strcmp("BYE\n",bufin)==0)){ // user is sending BYE
         sendbyeback=false;
         return false;
     }
 
-    if((strcmp("BYE\n",buf)==0)){
+    if((strcmp("BYE\n",buf)==0)){// user recived BYE
         if(sendbyeback){
         TCP_SendBye(false);
         }
@@ -174,9 +179,9 @@ void TCP_SendBye(bool expectbye){
     char bufin[BUFSIZE]="BYE\n";
     bzero(buf, BUFSIZE);
 
-    TCP_Send(bufin);
-    TCP_PrintBuf(bufin);
-    if(expectbye){
+    TCP_Send(bufin); // send BYE
+    TCP_PrintBuf(bufin); // print client buff (BYE) 
+    if(expectbye){ //wether or not to expect response
         TCP_Receive(buf);
         TCP_PrintBuf(buf);
     }
@@ -184,10 +189,10 @@ void TCP_SendBye(bool expectbye){
 
 
 void TCP_Run(Conn conn){
-    bool repeat = true;
-    char buf[BUFSIZE];
-    char bufin[BUFSIZE];
-    CreateSocket(conn, true);
+    bool repeat = true; // repeat until bye is send of C-c
+    char buf[BUFSIZE]; // recived msg buffer 
+    char bufin[BUFSIZE];// user input buffer
+    CreateSocket(true);
     TCP_Connect(conn);
    
     while(repeat){
@@ -198,7 +203,7 @@ void TCP_Run(Conn conn){
  
         TCP_PrintBuf(buf);
         repeat = TCP_CheckForBye(bufin,buf);
-        if (flag){
+        if (flag){ // C-c recived from user
             return;
         }
     }
@@ -206,9 +211,9 @@ void TCP_Run(Conn conn){
 
 struct sockaddr_in UDP_CreateAddress(Conn conn){
     struct sockaddr_in serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(conn.port);
-    serverAddress.sin_addr.s_addr = inet_addr(conn.host);
+    serverAddress.sin_family = AF_INET; // ipv4
+    serverAddress.sin_port = htons(conn.port); // port
+    serverAddress.sin_addr.s_addr = inet_addr(conn.host);//  host ip address
 
     return serverAddress;
 }
@@ -218,9 +223,9 @@ struct sockaddr_in UDP_CreateAddress(Conn conn){
 void UDP_Send(char * bufin, struct sockaddr_in serverAddress){
     
     int flags = 0;
-    int len = strlen(bufin);
-    char output[len+HEAD_SIZE_REQ];
-    
+    int len = strlen(bufin); // user input length
+    char output[len+HEAD_SIZE_REQ]; // array larger by size of metadata
+    // metadata
     output[0] = 0; 
     output[1] = len;  
     
@@ -246,11 +251,12 @@ void UDP_Receive(char *buf, struct sockaddr_in serverAddress){
         perror("ERROR: setting socket timeout");
     }
     
+    //read recived msg to buffer
     bzero(buf,BUFSIZE);
     int bytesrx =  recvfrom(client_socket, buf, BUFSIZE, flags, (struct sockaddr *) &serverAddress, &serverlen);
     if (bytesrx < 0) {
       perror("ERROR: Receive");
-      }
+    }
     
 }
 
@@ -279,7 +285,7 @@ void UDP_Run(Conn conn){
     struct sockaddr_in serverAddress;
     
 
-    CreateSocket(conn, false);
+    CreateSocket(false);
     while(true){
         serverAddress=UDP_CreateAddress(conn);
         Read(bufin);
