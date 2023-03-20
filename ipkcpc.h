@@ -52,10 +52,9 @@ Conn ParseArgs(int argc, char * const argv[]);
 /**
  * Creates socket of give mode for given address.
  *
- * @param conn Struct with credentials of server address .
  * @param is_tcp Creates socket in TCP mode is true, else UDP mode.
  */
-void CreateSocket(Conn conn, bool is_tcp);
+void CreateSocket(bool is_tcp);
 
 /**
  * Sets given variable to true if given mode is tcp else udp.
