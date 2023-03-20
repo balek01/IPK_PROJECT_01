@@ -19,13 +19,15 @@
 #ifndef IPKCPC_H
 #define IPKCPC_H
 
-int OP_CODE_REQ = 0;
-int OP_CODE_RES = 1;
-int STAT_CODE_ERR = 1;
-int STAT_CODE_OK = 0;
-bool DEBUG = false;
-int HEAD_SIZE_REQ = 2;
-int HEAD_SIZE_RES = 3;
+#define BUFSIZE 1024
+#define UDPBUFSIZE 255
+#define OP_CODE_REQ 0
+#define OP_CODE_RES 1
+#define STAT_CODE_ERR 1
+#define STAT_CODE_OK 0
+#define DEBUG false
+#define HEAD_SIZE_REQ 2
+#define HEAD_SIZE_RES 3
 
 typedef struct
 {
