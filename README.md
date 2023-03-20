@@ -60,7 +60,7 @@ OK:366
 #### UDP Combination of correct and incorrect messages
 
 ```
-/ipkcpc -h 127.0.0.70  -p 2023 -m udp
+./ipkcpc -h 127.0.0.70  -p 2023 -m udp
 ( * 2 22)
 OK:44
 random
@@ -96,7 +96,7 @@ BYE
 Sends multiple corectly formated messages to server. Prints response.
 
 ```
-/ipkcpc -h 127.0.0.70  -p 2023 -m tcp
+./ipkcpc -h 127.0.0.70  -p 2023 -m tcp
 HELLO
 HELLO
 SOLVE ( * 2 2 ) 
