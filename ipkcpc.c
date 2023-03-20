@@ -14,7 +14,7 @@
  *
  *  Last modified: Mar 20, 2023
  *
- * Known problem: when udp msg is longer then 255;
+ * 
  */
 
 #include <stdio.h>
@@ -30,7 +30,6 @@
 #include <unistd.h>
 #include "ipkcpc.h"
 
-#define BUFSIZE 1024
 
 volatile sig_atomic_t flag = 0;
 
@@ -127,7 +126,7 @@ void TCP_Connect(Conn conn, int client_socket)
     Debug("Connected");
 }
 
-void Read(char *bufin)
+void UDP_Read(char *bufin)
 {
 
     bzero(bufin, BUFSIZE); // refresh buffer
@@ -135,6 +134,22 @@ void Read(char *bufin)
     {
         perror("ERROR in read");
     }
+
+    if (bufin[strlen(bufin) - 1] != '\n') {
+        fprintf(stderr, "Max input is length 255 characters!\n");
+        exit(1);
+    }
+}
+
+void TCP_Read(char *bufin)
+{
+
+    bzero(bufin, BUFSIZE); // refresh buffer
+    if (fgets(bufin, BUFSIZE, stdin) == NULL)
+    {
+        perror("ERROR in read");
+    }
+
 }
 
 void TCP_Send(char *bufin, int client_socket)
@@ -205,7 +220,7 @@ void TCP_Run(Conn conn, int client_socket)
 
     while (repeat)
     {
-        Read(bufin);
+        TCP_Read(bufin);
 
         TCP_Send(bufin, client_socket);
         TCP_Receive(buf, client_socket);
@@ -214,7 +229,6 @@ void TCP_Run(Conn conn, int client_socket)
         repeat = TCP_CheckForBye(bufin, buf, client_socket);
         if (flag)
         { // C-c recived from user
-            printf("\n");
             TCP_SendBye(true, client_socket);
 
             return;
@@ -272,6 +286,7 @@ void UDP_Receive(char *buf, struct sockaddr_in serverAddress, int client_socket,
     if (bytesrx < 0)
     {
         perror("ERROR: Receive");
+        exit(1);
     }
 }
 
@@ -302,13 +317,13 @@ void UDP_Run(Conn conn, int client_socket)
 {
 
     char buf[BUFSIZE];   // server response
-    char bufin[BUFSIZE]; // user input
+    char bufin[UDPBUFSIZE]; // user input
     struct sockaddr_in serverAddress;
 
     while (true)
     {
         serverAddress = UDP_CreateAddress(conn);
-        Read(bufin);
+        UDP_Read(bufin);
         socklen_t serverlen = UDP_Send(bufin, serverAddress, client_socket);
         UDP_Receive(buf, serverAddress, client_socket, serverlen);
         UDP_PrintBuf(buf);

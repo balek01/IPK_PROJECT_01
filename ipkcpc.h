@@ -83,7 +83,14 @@ void TCP_Connect(Conn conn, int client_socket);
  *
  * @param bufin Bufer to contain stdin.
  */
-void Read(char *bufin);
+void TCP_Read(char *bufin);
+
+/**
+ * Reads from stdin to given buffer. Throws error if message is longer than 255 characters.
+ *
+ * @param bufin Bufer to contain stdin.
+ */
+void UDP_Read(char *bufin);
 
 /**
  * Sends buffer contents to connected host.
