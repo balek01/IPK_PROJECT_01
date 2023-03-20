@@ -1,5 +1,12 @@
-build:	ipkcpc.c 
+CC=gcc
+CFLAGS=-Wall -g
+OUTPUT=ipkcpc
 
-	gcc ipkcpc.c -o ipkcpc
+build: ipkcpc.c ipkcpc.h
+	$(CC) $(CFLAGS) ipkcpc.c -o $(OUTPUT)
+
+run: ipkcpc
+	./$(OUTPUT)
+
 clean:
-	rm ipkcpc
+	rm -f $(OUTPUT)

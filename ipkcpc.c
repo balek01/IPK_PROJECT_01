@@ -1,3 +1,20 @@
+/**
+ * 
+ * @file ipkcpc.c
+ * 
+ * @brief Project: IPK23 Calculator Protocol
+ *
+ * @author xbalek02 Miroslav Bálek
+ * 
+ * Note: This project is both UPD and TCP communication significantly inspired by 
+ * code written by Ondrej Rysavy (rysavy@fit.vutbr.cz)
+ * SRC: 
+ * - https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoUdp/client.c
+ * - https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp/DemoUdp/client.c
+ * 
+ *  Last modified: Mar 20, 2023
+ */
+
 #include <stdio.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -9,38 +26,15 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include "ipkcpc.h"
 
 #define BUFSIZE 1024
 
-// TOOD : fix ctrl c in udp 
+
 volatile sig_atomic_t flag = 0;
 int client_socket;
 socklen_t serverlen;
 
-typedef struct {
-    char* host;
-    int port;
-    char* mode;
-} Conn;
-
-void Debug(char* msg);
-Conn parseArgs(int argc, const char * argv[]);
-void CreateSocket(Conn conn, bool is_tcp);
-void SetIsTcp(char* mode, bool *is_tcp);
-void TCP_Connect(Conn conn);
-void Read(char *bufin);
-void TCP_Send(char *bufin);
-void TCP_Recieve(char *buf);
-void PrintBuf(char *buf,bool server);
-void TCP_SendBye(bool expectbye);
-bool TCP_CheckForBye(char *bufin, char *buf);
-void TCP_SigHandler(int sig);
-void TCP_Run(Conn conn);
-
-void UDP_Run(Conn conn);
-struct sockaddr_in UDP_CreateAddress(Conn conn);
-void UDP_Send(char *bufin, struct sockaddr_in serverAddress);
-void UDP_Recieve(char *buf, struct sockaddr_in serverAddress);
 
 void TCP_SigHandler(int sig){
     flag = 1;
@@ -51,7 +45,7 @@ void TCP_SigHandler(int sig){
     exit(0);
 }
 
-Conn parseArgs(int argc, const char * argv[]){
+Conn ParseArgs(int argc, char *const  argv[]){
     int opt;
     Conn conn;
     conn.port=-1;
@@ -89,26 +83,16 @@ Conn parseArgs(int argc, const char * argv[]){
 
 
 
-int GetIpFromDNS(Conn conn){
-  /*
-    struct hostent *server;
-      if ((server = gethostbyname(conn.host)) == NULL) {
-        fprintf(stderr,"ERROR: no such host as %s\n", conn.host);
-        exit(EXIT_FAILURE);
-    }
-    conn.host=server;*/
-}
-
 void CreateSocket(Conn conn, bool is_tcp){
     int type;
     int family = AF_INET;
   if (is_tcp){
 
-      Debug("In tcp");
+    Debug("In tcp");
      type = SOCK_STREAM;
 
   }else{
-      Debug("In udp");
+    Debug("In udp");
      type = SOCK_DGRAM;
   }
    
@@ -143,7 +127,6 @@ void TCP_Connect(Conn conn){
 
 void Read(char *bufin){
     bzero(bufin, BUFSIZE);
-    printf("Please enter msg: ");
     if(fgets(bufin,BUFSIZE, stdin) == NULL){
         perror("ERROR in read");
     }
@@ -157,7 +140,7 @@ void TCP_Send(char *bufin){
       perror("ERROR in sendto");
 }
 
-void TCP_Recieve(char *buf){
+void TCP_Receive(char *buf){
     int bytesrx;
     bzero(buf, BUFSIZE);
     bytesrx = recv(client_socket, buf, BUFSIZE, 0);
@@ -165,13 +148,9 @@ void TCP_Recieve(char *buf){
     perror("ERROR in recvfrom");
 }
 
-void PrintBuf(char *buf,bool server){
-    if (server){
-        printf("Response: '%s'", buf);
-    }else{
-        printf("Your msg: '%s'", buf);
-    }
-    
+void TCP_PrintBuf(char *buf){
+   
+        printf("%s", buf);  
 }
 bool TCP_CheckForBye(char *bufin, char *buf){
     bool sendbyeback = true;
@@ -196,10 +175,10 @@ void TCP_SendBye(bool expectbye){
     bzero(buf, BUFSIZE);
 
     TCP_Send(bufin);
-    PrintBuf(bufin,false);
+    TCP_PrintBuf(bufin);
     if(expectbye){
-    TCP_Recieve(buf);
-    PrintBuf(buf,true);
+        TCP_Receive(buf);
+        TCP_PrintBuf(buf);
     }
 }
 
@@ -212,16 +191,16 @@ void TCP_Run(Conn conn){
     TCP_Connect(conn);
    
     while(repeat){
-    Read(bufin);
+        Read(bufin);
 
-    TCP_Send(bufin);
-    TCP_Recieve(buf);
+        TCP_Send(bufin);
+        TCP_Receive(buf);
  
-    PrintBuf(buf,true);
-    repeat = TCP_CheckForBye(bufin,buf);
-       if (flag){
-        return;
-    }
+        TCP_PrintBuf(buf);
+        repeat = TCP_CheckForBye(bufin,buf);
+        if (flag){
+            return;
+        }
     }
 }
 
@@ -230,6 +209,7 @@ struct sockaddr_in UDP_CreateAddress(Conn conn){
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(conn.port);
     serverAddress.sin_addr.s_addr = inet_addr(conn.host);
+
     return serverAddress;
 }
 
@@ -239,71 +219,100 @@ void UDP_Send(char * bufin, struct sockaddr_in serverAddress){
     
     int flags = 0;
     int len = strlen(bufin);
-    char output[len+2];
+    char output[len+HEAD_SIZE_REQ];
     
     output[0] = 0; 
     output[1] = len;  
     
-    
-    strncpy(&output[2], bufin, len-1);
+    // -1 ignores newline
+    memcpy(&output[HEAD_SIZE_REQ], bufin, len);
     serverlen = sizeof(serverAddress);
-    int bytestx=  sendto(client_socket, output, len+2, flags, (struct sockaddr *) &serverAddress, serverlen);
+    int bytestx=  sendto(client_socket, output, len+HEAD_SIZE_REQ, flags, (struct sockaddr *) &serverAddress, serverlen);
     if (bytestx < 0) 
       perror("ERROR: sendto");
        
     
 }
 
-void UDP_Recieve(char *buf, struct sockaddr_in serverAddress){
-    //TODO: recieve msg prints bad
+void UDP_Receive(char *buf, struct sockaddr_in serverAddress){
+    
     int flags = 0;
-    char bufs[BUFSIZE];
-    bzero(bufs, BUFSIZE);
-    int bytesrx=  recvfrom(client_socket, bufs, BUFSIZE, flags, (struct sockaddr *) &serverAddress, &serverlen);
-    printf("%s",bufs);
+    struct timeval timeout;
+    timeout.tv_sec = 5; 
+    timeout.tv_usec = 0;
+
+    // Create 5 sec timeout to socket 
+    if (setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        perror("ERROR: setting socket timeout");
+    }
+    
+    bzero(buf,BUFSIZE);
+    int bytesrx =  recvfrom(client_socket, buf, BUFSIZE, flags, (struct sockaddr *) &serverAddress, &serverlen);
     if (bytesrx < 0) {
-      perror("ERROR: recieve");}
+      perror("ERROR: Receive");
+      }
+    
+}
+
+void UDP_PrintBuf(char *buf){
+        // opcode is response
+        if(buf[0] == OP_CODE_RES){
+            //status code is error
+            if(buf[1] == STAT_CODE_ERR){
+                printf("ERR:%s\n",&buf[HEAD_SIZE_RES]);
+            }else{
+                //status code is ok
+                printf("OK:%s\n",&buf[HEAD_SIZE_RES]);
+            }
+        }else{
+        //recv request
+            fprintf(stderr,"Received request being ignored.\n");
+        }
+
+  
     
 }
 void UDP_Run(Conn conn){
-    char buf[BUFSIZE];
-    bzero(buf, BUFSIZE);
-    char bufin[BUFSIZE];
+
+    char buf[BUFSIZE]; // server response
+    char bufin[BUFSIZE]; // user input
     struct sockaddr_in serverAddress;
     
 
     CreateSocket(conn, false);
-    Read(bufin);
-    serverAddress=UDP_CreateAddress(conn);
-    UDP_Send(bufin,serverAddress);
-    UDP_Recieve(buf,serverAddress);
-    PrintBuf(buf,true);
+    while(true){
+        serverAddress=UDP_CreateAddress(conn);
+        Read(bufin);
+        UDP_Send(bufin,serverAddress);
+        UDP_Receive(buf,serverAddress);
+        UDP_PrintBuf(buf);
+    }
 }
 
 
-int main (int argc, const char * argv[]) {
+int main (int argc,  char * const  argv[]) {
 
     bool is_tcp = false;
+    Conn conn = ParseArgs(argc, argv);
    
-  
-    signal(SIGINT, TCP_SigHandler);
-
-    Conn conn = parseArgs(argc, argv);
-    fprintf(stderr,"Mode is %s, ip: %s , port: %d\n", conn.mode, conn.host, conn.port );
-    //GetIpFromDNS(conn);
     SetIsTcp(conn.mode, &is_tcp);
-
     if (is_tcp){
+        signal(SIGINT, TCP_SigHandler);
         TCP_Run(conn);
     }else{
         UDP_Run(conn);
     }
     
-    shutdown(client_socket,SHUT_RDWR);
-    close(client_socket);
+    shutdown(client_socket,SHUT_RDWR); // prevent socket from sending and reciving 
+
+    if (close(client_socket) == -1){// close socket
+        perror("ERROR: closing socket");
+    } 
     return 0;
 }
 
 void Debug(char* msg){
-fprintf(stderr,"DEBUG: %s\n",msg);
+if(DEBUG){
+    fprintf(stderr,"DEBUG: %s\n",msg);
+}
 }
