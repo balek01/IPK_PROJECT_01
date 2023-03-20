@@ -14,4 +14,4 @@ TCP communication first creates a socket in the same way as UDP. However, a conn
 - [Miroslav Bálek](https://git.fit.vutbr.cz/xbalek02/)
 
 ## References:
-RYSAVY, Ondrej. Used code from. NESFIT: IPK-Projekty [online]. BrnoBrno University of Technology, 2015 [cit. 2023-03-20]. Available from: https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp
+RYSAVY, Ondrej. Used code from. NESFIT: IPK-Projekty [online]. Brno: Brno University of Technology, 2015 [cit. 2023-03-20]. Available from: https://git.fit.vutbr.cz/NESFIT/IPK-Projekty/src/branch/master/Stubs/cpp
